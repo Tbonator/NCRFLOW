@@ -1,9 +1,14 @@
 # Phase 2: internal NCR list and detail screens
 
-This item adds two read-only screens: a list of the NCRs a signed-in member may
+This item originally added two read-only screens: a list of the NCRs a signed-in member may
 see in their current company, and a detail page for one NCR with its audit
 history. It introduces no status transitions, no editing, no supplier feature
 and no email. There are no model changes and no migrations.
+
+The later internal lifecycle item adds role-checked POST action forms to detail
+pages and corrects audit display to approved Q42. See `phase-2-internal-lifecycle.md`
+for those additions and current verification; historical results below describe
+the original browsing item, not the current final test status.
 
 ## Behaviour
 
@@ -57,12 +62,11 @@ no view or template repeats the rule.
   `require_company_role`, filters `AuditEntry` by that company and this NCR,
   and returns nothing when the NCR is in another company or is not in the
   actor's `visible_ncrs_for` queryset. Entries are
-  oldest first, with when, who, what (action, plus field name and
-  comment when present), old value and new value. Values are shown exactly as
-  stored; the creation entry's new value is the JSON snapshot written by the
-  creation service.
-- The page contains no form or button that changes data. Both views accept
-  GET only.
+  oldest first. Under Q42, the screen shows only when, who and a readable action
+  label. Stored field names, comments and old/new values are not displayed for
+  any role. Full audit records remain stored and immutable.
+- Both read views accept GET only. Later lifecycle action forms submit to
+  separate POST-only endpoints with current role/state checks.
 
 ### Navigation
 

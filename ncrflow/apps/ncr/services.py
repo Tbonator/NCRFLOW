@@ -2,7 +2,7 @@ import json
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.db.models import BooleanField, Case, Q, Value, When
@@ -11,7 +11,13 @@ from django.utils import timezone
 from apps.tenants.models import AuditEntry, Membership, NumberSequence
 from apps.tenants.permissions import require_company_role
 
-from .forms import NCRCreateForm
+from .forms import (
+    DESCRIPTIVE_FIELDS,
+    QUALITY_EDIT_FIELDS,
+    NCRCreateForm,
+    NCREditForm,
+    NCRTransitionForm,
+)
 from .models import NCR
 
 
@@ -196,3 +202,177 @@ def audit_history_for(*, by, actor_membership, report):
     return (
         entries.filter(ncr_id=report.pk).select_related("actor_user").order_by("created_at", "pk")
     )
+
+
+def _may_act(report, actor, role, action):
+    if action == "start-review":
+        return role == Membership.Role.QUALITY or (
+            role == Membership.Role.MANAGER and report.responsible_manager_id == actor.pk
+        )
+    return action in ("close", "cancel") and role == Membership.Role.QUALITY
+
+
+def _source_statuses(action):
+    return {
+        "start-review": (NCR.Status.OPEN,),
+        "close": (NCR.Status.IN_REVIEW,),
+        "cancel": (NCR.Status.OPEN, NCR.Status.IN_REVIEW),
+    }.get(action, ())
+
+
+def internal_actions_for(*, by, actor_membership, report):
+    """Display hints only; writes repeat all checks against the locked report."""
+    company, actor = require_company_role(by=by, actor_membership=actor_membership, role=None)
+    role = Membership.objects.for_company(company).get(pk=actor_membership.pk).role
+    if report.company_id != company.pk or report.direction != "internal":
+        return ()
+    return tuple(
+        action
+        for action in ("start-review", "close", "cancel")
+        if _may_act(report, actor, role, action) and report.status in _source_statuses(action)
+    )
+
+
+@transaction.atomic
+def _transition_internal_ncr(*, report_id, action, by, actor_membership, reason=""):
+    company, actor = require_company_role(
+        by=by, actor_membership=actor_membership, role=None, lock=True
+    )
+    role = Membership.objects.for_company(company).get(pk=actor_membership.pk).role
+    report = NCR.objects.for_company(company).select_for_update().filter(pk=report_id).first()
+    if report is None or not _may_act(report, actor, role, action):
+        raise PermissionDenied("You cannot perform this NCR action.")
+    if report.direction != "internal" or report.status not in _source_statuses(action):
+        raise ValidationError("This action is no longer available. Reload the NCR and try again.")
+    form = NCRTransitionForm({"reason": reason} if action == "cancel" else {})
+    if not form.is_valid():
+        raise ValidationError(form.errors.as_data())
+    old_status = report.status
+    instant = timezone.now()
+    fields = ["status", "updated_at"]
+    if action == "start-review":
+        report.status = NCR.Status.IN_REVIEW
+        report.review_started_at = instant
+        fields.append("review_started_at")
+    elif action == "close":
+        report.status = NCR.Status.CLOSED
+        report.closed_at, report.closed_by = instant, actor
+        fields.extend(["closed_at", "closed_by"])
+    else:
+        report.status = NCR.Status.CANCELLED
+        report.cancelled_at, report.cancelled_by = instant, actor
+        report.cancellation_reason = form.cleaned_data["reason"]
+        fields.extend(["cancelled_at", "cancelled_by", "cancellation_reason"])
+    report.save(update_fields=fields)
+    AuditEntry.objects.for_company(company).create(
+        company=company,
+        actor_user=actor,
+        ncr=report,
+        object_type="ncr",
+        object_id=report.pk,
+        object_label=report.number,
+        action=AuditEntry.Action.STATUS_CHANGED,
+        field_name="status",
+        old_value=old_status,
+        new_value=report.status,
+        comment=report.cancellation_reason if action == "cancel" else "",
+    )
+    # All status-email delivery is implemented in Phase 4 (CLAUDE.md section 10).
+    return report
+
+
+def _editable_fields(report, actor, role):
+    if report.direction != "internal" or report.status not in (
+        NCR.Status.OPEN,
+        NCR.Status.IN_REVIEW,
+    ):
+        return ()
+    if role == Membership.Role.QUALITY:
+        return DESCRIPTIVE_FIELDS + QUALITY_EDIT_FIELDS
+    if (report.status == NCR.Status.OPEN and report.originator_id == actor.pk) or (
+        role == Membership.Role.MANAGER and report.responsible_manager_id == actor.pk
+    ):
+        return DESCRIPTIVE_FIELDS
+    return ()
+
+
+def editable_ncr_fields_for(*, by, actor_membership, report):
+    """Form/display hint only; saving repeats the checks against the locked row."""
+    company, actor = require_company_role(by=by, actor_membership=actor_membership, role=None)
+    if report.company_id != company.pk:
+        return ()
+    role = Membership.objects.for_company(company).get(pk=actor_membership.pk).role
+    return _editable_fields(report, actor, role)
+
+
+@transaction.atomic
+def update_internal_ncr(*, by, actor_membership, report_id, data):
+    company, actor = require_company_role(
+        by=by, actor_membership=actor_membership, role=None, lock=True
+    )
+    role = Membership.objects.for_company(company).get(pk=actor_membership.pk).role
+    report = NCR.objects.for_company(company).select_for_update().filter(pk=report_id).first()
+    if report is None:
+        raise PermissionDenied("You cannot edit this NCR.")
+    if report.direction != "internal" or report.status in (NCR.Status.CLOSED, NCR.Status.CANCELLED):
+        raise ValidationError(
+            "This NCR is no longer editable. Reload it to see its current status."
+        )
+    allowed = _editable_fields(report, actor, role)
+    if not allowed:
+        raise PermissionDenied("You cannot edit this NCR.")
+    form = NCREditForm(data, company=company, report=report, editable_fields=allowed)
+    if not form.is_valid():
+        raise ValidationError(form.errors.as_data())
+    if form.cleaned_data["revision"] != report.updated_at:
+        raise ValidationError("This NCR changed while you were editing. Reload it before saving.")
+    changes = []
+    for field in allowed:
+        value = form.cleaned_data[field]
+        attribute = f"{field}_id" if field in QUALITY_EDIT_FIELDS else field
+        old_value = getattr(report, attribute)
+        new_value = value.pk if field in QUALITY_EDIT_FIELDS else value
+        if old_value == new_value:
+            continue
+        if field in ("region", "discipline"):
+            if (
+                not type(value)
+                .objects.for_company(company)
+                .select_for_update()
+                .filter(pk=value.pk, active=True)
+                .exists()
+            ):
+                raise ValidationError({field: "Choose an active entry in this company."})
+        elif field == "responsible_manager":
+            manager = (
+                Membership.objects.for_company(company)
+                .select_for_update(of=("self",))
+                .filter(
+                    user_id=value.pk,
+                    active=True,
+                    role=Membership.Role.MANAGER,
+                    user__is_active=True,
+                )
+                .first()
+            )
+            if manager is None:
+                raise ValidationError({field: "Choose an active company Manager."})
+        setattr(report, attribute, new_value)
+        changes.append((attribute, old_value, new_value))
+    if not changes:
+        return report
+    report.save(update_fields=[*(field for field, _, _ in changes), "updated_at"])
+    for field, old_value, new_value in changes:
+        AuditEntry.objects.for_company(company).create(
+            company=company,
+            actor_user=actor,
+            ncr=report,
+            object_type="ncr",
+            object_id=report.pk,
+            object_label=report.number,
+            action=AuditEntry.Action.FIELD_CHANGED,
+            field_name=field,
+            old_value=json.dumps(old_value, cls=DjangoJSONEncoder),
+            new_value=json.dumps(new_value, cls=DjangoJSONEncoder),
+        )
+    return report

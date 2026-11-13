@@ -1,20 +1,25 @@
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_GET, require_http_methods
+from django.views.decorators.http import require_GET, require_http_methods, require_POST
 
 from apps.tenants.permissions import require_company_role
 
-from .forms import NCRCreateForm, NCRStatusFilterForm
+from .forms import NCRCreateForm, NCREditForm, NCRStatusFilterForm, NCRTransitionForm
 from .models import NCR
 from .services import (
     audit_history_for,
     company_today,
     create_internal_ncr,
+    editable_ncr_fields_for,
+    internal_actions_for,
     ncr_details_for,
     ncr_list_for,
+    update_internal_ncr,
 )
 
 
@@ -87,6 +92,10 @@ def ncr_list(request):
 @never_cache
 @require_GET
 def ncr_detail(request, public_id):
+    return _render_detail(request, public_id)
+
+
+def _render_detail(request, public_id, *, form=None, status=200):
     company, _ = require_company_role(
         by=request.user, actor_membership=request.membership, role=None
     )
@@ -103,5 +112,95 @@ def ncr_detail(request, public_id):
     return render(
         request,
         "ncr/detail.html",
-        {"report": report, "audit_entries": audit_entries, "company": company},
+        {
+            "report": report,
+            "audit_entries": audit_entries,
+            "company": company,
+            "can_edit": bool(
+                editable_ncr_fields_for(
+                    by=request.user, actor_membership=request.membership, report=report
+                )
+            ),
+            "transition_form": form if form is not None else NCRTransitionForm(),
+            "internal_actions": internal_actions_for(
+                by=request.user, actor_membership=request.membership, report=report
+            ),
+        },
+        status=status,
     )
+
+
+@login_required
+@never_cache
+@require_POST
+def ncr_transition(request, public_id, action):
+    methods = {"start-review": "start_review", "close": "close", "cancel": "cancel"}
+    if action not in methods:
+        raise Http404
+    report = get_object_or_404(
+        ncr_details_for(
+            by=request.user,
+            actor_membership=request.membership,
+            today=company_today(request.company),
+        ),
+        public_id=public_id,
+    )
+    # The model method rechecks current state and authority inside the write transaction.
+    kwargs = {"by": request.user, "actor_membership": request.membership}
+    if action == "cancel":
+        kwargs["reason"] = request.POST.get("reason", "")
+    try:
+        getattr(report, methods[action])(**kwargs)
+    except ValidationError as error:
+        form = NCRTransitionForm(request.POST)
+        form.is_valid()
+        form.add_error(None, error.messages)
+        return _render_detail(request, public_id, form=form, status=409)
+    messages.success(request, f"{report.number}: {report.get_status_display()}.")
+    return redirect("ncr:detail", public_id=public_id)
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET", "POST"])
+def edit_ncr(request, public_id):
+    company, _ = require_company_role(
+        by=request.user, actor_membership=request.membership, role=None
+    )
+    report = get_object_or_404(
+        ncr_details_for(
+            by=request.user, actor_membership=request.membership, today=company_today(company)
+        ),
+        public_id=public_id,
+    )
+    allowed = editable_ncr_fields_for(
+        by=request.user, actor_membership=request.membership, report=report
+    )
+    if not allowed:
+        raise PermissionDenied("You cannot edit this NCR in its current status.")
+    form = NCREditForm(
+        request.POST if request.method == "POST" else None,
+        company=company,
+        report=report,
+        editable_fields=allowed,
+    )
+    if request.method == "POST" and form.is_valid():
+        try:
+            report = update_internal_ncr(
+                by=request.user,
+                actor_membership=request.membership,
+                report_id=report.pk,
+                data=request.POST,
+            )
+        except ValidationError as error:
+            if hasattr(error, "error_dict"):
+                for field, errors in error.error_dict.items():
+                    form.add_error(field if field in form.fields else None, errors)
+            else:
+                conflict = NCRTransitionForm({})
+                conflict.add_error(None, error.messages)
+                return _render_detail(request, public_id, form=conflict, status=409)
+        else:
+            messages.success(request, f"{report.number} saved.")
+            return redirect("ncr:detail", public_id=public_id)
+    return render(request, "ncr/edit.html", {"form": form, "report": report})

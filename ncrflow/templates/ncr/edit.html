@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ report.number }} · ncrflow{% endblock %}
+{% block content %}
+<section class="narrow-section">
+  <a href="{% url 'ncr:detail' report.public_id %}">Back to {{ report.number }}</a>
+  <p class="eyebrow">{{ request.company.name }} · {{ report.get_status_display }}</p>
+  <h1>Edit {{ report.number }}</h1>
+  <div class="card">
+    <dl>
+      <div><dt>Classification</dt><dd>{{ report.classification.name }}</dd></div>
+      <div><dt>Due date</dt><dd>{{ report.due_date|date:"j F Y" }}</dd></div>
+    </dl>
+    <form method="post">
+      {% csrf_token %}{{ form.non_field_errors }}
+      {% for field in form %}
+        {% if field.is_hidden %}{{ field }}{{ field.errors }}{% else %}
+        <div class="form-field">
+          {{ field.label_tag }}{{ field }}{{ field.errors }}
+          {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+        </div>
+        {% endif %}
+      {% endfor %}
+      <div class="form-actions">
+        <button class="button" type="submit">Save changes</button>
+        <a href="{% url 'ncr:detail' report.public_id %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

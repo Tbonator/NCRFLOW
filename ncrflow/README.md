@@ -86,7 +86,14 @@ active same-company Managers. Number, originator, company, Open status and due
 date are assigned by the server. See `docs/phase-2-ncr-creation.md` for setup,
 scope and validation status.
 The creation item passed independent review with no remaining findings and all
-268 tests passing. Review/close/cancel actions and general NCR lists are next.
+268 tests passing. NCR lists/details and internal review/close/cancel actions now
+exist; see `docs/phase-2-internal-lifecycle.md` for the current item and validation.
+Approved NCR editing is also implemented; `docs/phase-2-ncr-editing.md` describes
+role-specific fields, manager reassignment and stale-edit protection. Supplier
+management and dispatch are the next build phase.
+Current validation: 548 tests pass; Q38 editing independently reviewed PASS with
+no findings. Live PostgreSQL migrations and a rolled-back edit/audit check pass;
+concurrent-request and interactive browser checks remain outstanding.
 
 ## Running the app (from Phase 1 onward)
 

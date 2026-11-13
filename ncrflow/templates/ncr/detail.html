@@ -6,6 +6,7 @@
   <a href="{% url 'ncr:list' %}">← NCRs</a>
   <div class="page-heading">
     <div><p class="eyebrow">{{ company.name }} · {{ report.get_direction_display }} NCR</p><h1>{{ report.number }}</h1></div>
+    {% if can_edit %}<a class="button" href="{% url 'ncr:edit' report.public_id %}">Edit NCR</a>{% endif %}
   </div>
   {% timezone company.timezone %}
   <div class="card">
@@ -27,21 +28,43 @@
     <h2>Description</h2>
     <p class="report-description">{{ report.description|linebreaksbr }}</p>
   </div>
+  {% if transition_form.non_field_errors %}<div role="alert">{{ transition_form.non_field_errors }}</div>{% endif %}
+  {% if internal_actions %}
+  <div class="card stacked-card">
+    <h2>Actions</h2>
+    {% if 'start-review' in internal_actions %}
+    <form method="post" action="{% url 'ncr:transition' report.public_id 'start-review' %}">
+      {% csrf_token %}<button type="submit">Start review</button>
+    </form>
+    {% endif %}
+    {% if 'close' in internal_actions %}
+    <form method="post" action="{% url 'ncr:transition' report.public_id 'close' %}">
+      {% csrf_token %}<p>Closing this NCR is final. It cannot be reopened.</p>
+      <button type="submit">Close NCR</button>
+    </form>
+    {% endif %}
+    {% if 'cancel' in internal_actions %}
+    <form method="post" action="{% url 'ncr:transition' report.public_id 'cancel' %}">
+      {% csrf_token %}{{ transition_form.reason.as_field_group }}
+      <p>Cancelling this NCR is final. It cannot be reopened.</p>
+      <button type="submit">Cancel NCR</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endif %}
   <div class="card table-card stacked-card">
     <h2>Audit history</h2>
     {% if audit_entries %}
       <div class="table-scroll">
         <table>
           <caption class="visually-hidden">Audit history for {{ report.number }}</caption>
-          <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th><th scope="col">Old value</th><th scope="col">New value</th></tr></thead>
+          <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th></tr></thead>
           <tbody>
             {% for entry in audit_entries %}
               <tr>
                 <th scope="row">{{ entry.created_at|date:"j F Y, H:i" }}</th>
                 <td>{% if entry.actor_user %}{% firstof entry.actor_user.full_name entry.actor_user.email %}{% else %}System{% endif %}</td>
-                <td>{{ entry.get_action_display }}{% if entry.field_name %}: {{ entry.field_name }}{% endif %}{% if entry.comment %}<br>{{ entry.comment }}{% endif %}</td>
-                <td class="audit-value">{% if entry.old_value is None %}—{% else %}{{ entry.old_value }}{% endif %}</td>
-                <td class="audit-value">{% if entry.new_value is None %}—{% else %}{{ entry.new_value }}{% endif %}</td>
+                <td>{{ entry.get_action_display }}</td>
               </tr>
             {% endfor %}
           </tbody>

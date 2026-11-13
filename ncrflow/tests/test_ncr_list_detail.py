@@ -579,7 +579,7 @@ def test_get_requests_never_change_status_or_audit_history(world):
 
 
 @pytest.mark.parametrize("key", ROLE_KEYS)
-def test_pages_contain_no_data_changing_form_except_sign_out(world, key):
+def test_pages_offer_only_authorised_data_changing_forms(world, key):
     client = login(world["a"]["people"][key][0])
     visible = world["reports"][sorted(VISIBLE[key])[0]]
     for url in (list_url(), detail_url(visible)):
@@ -592,10 +592,26 @@ def test_pages_contain_no_data_changing_form_except_sign_out(world, key):
             if re.search(r"\bmethod\s*=", form, re.I)
             and not re.search(r"\bmethod\s*=\s*[\"']?get\b", form, re.I)
         ]
-        assert len(changing) == 1
-        assert f'action="{reverse("accounts:logout")}"' in changing[0]
+        allowed = [reverse("accounts:logout")]
+        actions = []
+        if url == detail_url(visible):
+            actions = {
+                "manager1": ["start-review"],
+                "manager2": ["start-review"],
+                "quality": ["start-review", "cancel"],
+            }.get(key, [])
+            allowed.extend(
+                reverse("ncr:transition", kwargs={"public_id": visible.public_id, "action": action})
+                for action in actions
+            )
+        assert len(changing) == len(allowed)
+        for form, destination in zip(changing, allowed, strict=True):
+            assert f'action="{destination}"' in form
         assert not re.search(r"\b(hx-(post|put|patch|delete)|formaction|formmethod)\b", page, re.I)
-        assert not re.search(r"<(input|textarea)\b(?![^>]*type=\"hidden\")", page, re.I)
+        if "cancel" not in actions:
+            assert not re.search(r"<(input|textarea)\b(?![^>]*type=\"hidden\")", page, re.I)
+        else:
+            assert 'name="reason"' in page
 
 
 # 6. List behaviour ----------------------------------------------------------------------
@@ -924,8 +940,7 @@ def test_detail_audit_history_is_only_for_that_ncr(world):
     assert [entry.pk for entry in entries[1:]] == [earlier.pk, later.pk]
     assert [entry.pk for entry in history(a, "quality", first)] == [entry.pk for entry in entries]
     page = response.content.decode()
-    assert "VISIBLE-N1-LATER" in page and "VISIBLE-N1-SYSTEM" in page
-    assert page.index("VISIBLE-N1-SYSTEM") < page.index("VISIBLE-N1-LATER")
+    assert "VISIBLE-N1-LATER" not in page and "VISIBLE-N1-SYSTEM" not in page
     for hidden in (
         "HIDDEN-N2-COMMENT",
         "HIDDEN-B-COMMENT",
@@ -937,14 +952,14 @@ def test_detail_audit_history_is_only_for_that_ncr(world):
     ):
         assert hidden not in page, hidden
     assert "Quality A" in page and "System" in page
-    assert "OLD" in page and "NEW" in page
+    assert "OLD" not in page and "NEW" not in page
 
     other = login(a["people"]["quality"][0]).get(detail_url(second))
-    assert "HIDDEN-N2-COMMENT" in other.content.decode()
+    assert "HIDDEN-N2-COMMENT" not in other.content.decode()
     assert "VISIBLE-N1-LATER" not in other.content.decode()
     foreign = login(b["people"]["quality"][0]).get(detail_url(world["foreign"]))
     assert {entry.ncr_id for entry in foreign.context["audit_entries"]} == {world["foreign"].pk}
-    assert "HIDDEN-B-COMMENT" in foreign.content.decode()
+    assert "HIDDEN-B-COMMENT" not in foreign.content.decode()
     assert "VISIBLE-N1" not in foreign.content.decode()
 
 
@@ -1134,8 +1149,37 @@ def test_user_supplied_text_is_escaped_on_both_screens(company_a):
         assert escaped(number) in listing, number
     detail = client.get(detail_url(report)).content.decode()
     assert "<script" not in detail
-    for number in range(1, 11):
+    for number in (1, 2, 3, 4, 6, 7, 8):
         assert escaped(number) in detail, number
+    for number in (5, 9, 10):
+        assert escaped(number) not in detail, number
+
+
+@pytest.mark.parametrize("key", ["orig1", "manager1", "quality", "admin"])
+def test_plain_audit_history_never_displays_stored_values_fields_or_comments(world, key):
+    report = world["reports"]["n1"]
+    entry = add_audit(
+        report,
+        world["a"]["people"]["quality"][0],
+        "PRIVATE-AUDIT-COMMENT",
+        old_value="PRIVATE-OLD-VALUE",
+        new_value="PRIVATE-NEW-VALUE",
+    )
+    response = login(world["a"]["people"][key][0]).get(detail_url(report))
+    page = response.content.decode()
+    for hidden in (
+        "PRIVATE-AUDIT-COMMENT",
+        "PRIVATE-OLD-VALUE",
+        "PRIVATE-NEW-VALUE",
+        "part_number",
+        "Old value",
+        "New value",
+    ):
+        assert hidden not in page
+    assert "Field changed" in page and "Quality A" in page
+    entry.refresh_from_db()
+    assert entry.comment == "PRIVATE-AUDIT-COMMENT"
+    assert entry.old_value == "PRIVATE-OLD-VALUE" and entry.new_value == "PRIVATE-NEW-VALUE"
 
 
 def test_user_without_a_name_falls_back_to_escaped_email(company_a):

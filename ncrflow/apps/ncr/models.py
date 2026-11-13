@@ -156,3 +156,35 @@ class NCR(TenantModel):
 
     def __str__(self):
         return self.number
+
+    def start_review(self, *, by, actor_membership):
+        return self._transition("start-review", by=by, actor_membership=actor_membership)
+
+    def close(self, *, by, actor_membership):
+        return self._transition("close", by=by, actor_membership=actor_membership)
+
+    def cancel(self, *, by, actor_membership, reason=""):
+        return self._transition("cancel", by=by, actor_membership=actor_membership, reason=reason)
+
+    def _transition(self, action, *, by, actor_membership, reason=""):
+        from .services import _transition_internal_ncr
+
+        report = _transition_internal_ncr(
+            report_id=self.pk,
+            action=action,
+            by=by,
+            actor_membership=actor_membership,
+            reason=reason,
+        )
+        for field in (
+            "status",
+            "review_started_at",
+            "closed_at",
+            "closed_by_id",
+            "cancelled_at",
+            "cancelled_by_id",
+            "cancellation_reason",
+            "updated_at",
+        ):
+            setattr(self, field, getattr(report, field))
+        return self

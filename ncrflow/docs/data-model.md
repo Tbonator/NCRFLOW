@@ -306,6 +306,32 @@ are immutable after creation. Counters cannot move series/company or decrease.
 Existing SQLite audit guards must be preserved when adding the nullable history
 link. No application edit/delete endpoint is introduced here.
 
+Phase 2 internal lifecycle mapping: N2, N7 and the internal subset of N8 use
+named NCR model methods backed by transactional services. Authority is reloaded
+from active company/account/membership records; writes lock Company, actor
+membership and then the same-company NCR before checking its persisted state.
+The current assigned Manager role or Quality may start review; Quality alone
+may close from In Review or cancel Open/In Review. Each change stores its stamps
+and one linked status_changed audit atomically. Terminal states cannot reopen.
+No schema change is needed. Status email delivery remains Phase 4, as specified
+in the build phases; this Phase 2 implementation does not send closure emails.
+Q42's plain audit history display applies to the new events too.
+
+Phase 2 editing mapping (Q38/B.7): an explicit form exposes only fields allowed
+for the current actor and state. Creator identity grants descriptive edits while
+Open, regardless of that member's role; assigned Managers and Quality also edit
+descriptive fields while Open or In Review. Quality alone changes region,
+discipline or manager. Writes lock Company, actor membership, then the NCR and
+reload current permission/state. Changed references or manager choices must be
+active and same-company; unchanged historical inactive choices may be retained.
+Each actual changed field gets one linked field_changed audit in the transaction;
+an unchanged save writes neither audit nor updated_at. Identity, SLA, status and
+terminal stamps are excluded. No schema change or email is introduced. Phase 3
+will extend the applicable editing boundary to external NCRs under the same Q38.
+The form carries the existing updated_at timestamp as a hidden revision value;
+the locked row must still match it before applying edits, so stale full-form
+submissions cannot overwrite newer changes. A conflict requires reloading.
+
 ### 2.10 `supplier`
 
 | Column | Type | Nullable | Default | Constraint | Note |
@@ -1115,6 +1141,10 @@ Questions 1 to 39, Q41 and Q42 are accepted; Q40 is superseded by Q2. Q25 still 
 
 | Date | What changed | Why |
 |---|---|---|
+| 2026-11-13 | Q38 internal NCR editing independently reviewed PASS: 0 Blockers, 0 Should fix, 0 Minor; reviewer verified 61 editing tests and Django/drift checks. Full suite 548 passed; lint/format clean. Live HTTP role forms and a rolled-back PostgreSQL edit/audit transaction passed. | Completes current internal NCR editing with no schema changes. Browser layout and live concurrency remain unverified. See phase-2-ncr-editing.md. |
+| 2026-11-13 | Recorded the Phase 2 Q38 edit mapping: actor/state whitelist, locked revalidation, active same-company replacement choices, unchanged historical choices and atomic per-field audits. No schema or business-rule changes. | Complete internal NCR editing before supplier features; Q42 plain audit display remains unchanged. |
+| 2026-11-13 | Independent review PASS for internal N2/N7/N8 and Q42 display correction: 0 Blockers, 0 Should fix, 0 Minor. Main suite 487 passed; reviewer independently passed 219 lifecycle/list-detail tests and Django/drift checks. | Approved lifecycle and plain history implemented without schema changes; status emails remain Phase 4. PostgreSQL concurrency/browser checks remain outstanding. See phase-2-internal-lifecycle.md. |
+| 2026-11-13 | Recorded implementation boundaries for internal N2/N7/N8: named model methods, locked current authority and state, atomic stamps/status audit, and terminal refusal. Q42 plain history applies. No schema or business-rule change. | Continue the approved Phase 2 item; email delivery is staged for Phase 4, with no delivery claimed here. |
 | 2026-11-13 | Recorded Q42: the NCR audit history on the internal detail screen is shown plain. Recorded separately, as the coordinator's interpretation, that "plain" means when (company timezone), who (or "System") and a readable action label per entry, with no old value, new value, field name or comment shown to any internal role, including Quality and Company admin. Noted that fuller detail for Quality/Company admin was recommended but not adopted, and that cancellation reasons and review comments held as audit comments will not appear in this history. Updated the sentences that list accepted questions (revision note, section 6 intro, section 11 opening and closing). | Reviewer finding S1: the document did not say which internal role may read an NCR's audit trail, and the detail screen showed raw stored values. Explicit owner reply "make 1 plain". Display only: what `audit_entry` stores is unchanged and entries stay immutable; Q35 supplier visibility unchanged. No table, column, constraint, index or lifecycle changed. No schema, code or migration changed. |
 | 2026-11-13 | Review correction to the Q41 record. Reworded Q41 and its change-log row to separate the explicit owner decision (Company admin) from the proposed defaults the owner accepted without objection (Originator, Manager, Quality). Brought stale passages up to date with Q41: the revision note, the membership note in section 2.3, the description text of three `ncr` index rows in section 5, the approved-items sentence in section 6 and the opening and closing summaries of section 11. | Independent reviewer findings S3 (record overstated what the owner explicitly approved) and S4 (passages stale once Q41 existed). The rule itself is unchanged and stays in force. Indexed columns unchanged. No table, column, constraint, index or lifecycle changed. No schema, code or migration changed. |
 | 2026-11-13 | Recorded Q41: internal NCR read visibility per role for the Phase 2 list and detail screens. Explicitly decided by the owner: Company admin sees every NCR in the company. Proposed defaults accepted by the owner without objection in the same exchange: Originator sees NCRs they raised; Manager sees NCRs where they are the responsible manager plus any they raised; Quality sees every NCR in the company. Always scoped to the current company with an active user and active membership. Added Q41 and a note under section 6.1. | Explicit owner statement for Company admin only ("Company admin should see everything"), whose visibility was previously undefined; the other three rows were proposed by the coordinator and accepted, not stated by the owner. Read visibility only: N2/N7/N8 actors and Q38 edit rights are unchanged. No table, column, constraint, index or lifecycle changed. No schema, code or migration changed. |
