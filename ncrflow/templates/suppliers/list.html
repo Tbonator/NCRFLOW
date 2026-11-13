@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Suppliers · ncrflow{% endblock %}
+{% block content %}
+<section>
+  <a href="{% url 'tenants:workspace' %}">← {{ request.company.name }}</a>
+  <div class="page-heading">
+    <div><p class="eyebrow">{{ request.company.name }} · Company admin</p><h1>Suppliers</h1></div>
+    <a class="button" href="{% url 'suppliers:create' %}">Add supplier</a>
+  </div>
+  <p class="lede">Inactive suppliers remain in your history and can be activated again.</p>
+  <div class="card table-card">
+    {% if page.object_list %}
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">Suppliers for {{ request.company.name }}</caption>
+          <thead><tr><th scope="col">Name</th><th scope="col">Region</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+          <tbody>
+            {% for supplier in page %}
+              <tr>
+                <th scope="row"><a href="{% url 'suppliers:detail' supplier_id=supplier.pk %}">{{ supplier.name }}</a></th>
+                <td>{% if supplier.region %}{{ supplier.region.name }}{% else %}No region{% endif %}</td>
+                <td><span class="status-label{% if not supplier.active %} inactive{% endif %}">{% if supplier.active %}Active{% else %}Inactive{% endif %}</span></td>
+                <td class="row-actions">
+                  <a href="{% url 'suppliers:edit' supplier_id=supplier.pk %}">Edit<span class="visually-hidden"> {{ supplier.name }}</span></a>
+                  <form method="post" action="{% url 'suppliers:status' supplier_id=supplier.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="active" value="{% if supplier.active %}False{% else %}True{% endif %}">
+                    <button class="text-button" type="submit">{% if supplier.active %}Deactivate{% else %}Activate{% endif %}<span class="visually-hidden"> {{ supplier.name }}</span></button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page.has_other_pages %}
+        <nav class="pagination" aria-label="Pagination">
+          {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}">Previous</a>{% endif %}
+          <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+          {% if page.has_next %}<a href="?page={{ page.next_page_number }}">Next</a>{% endif %}
+        </nav>
+      {% endif %}
+    {% else %}<p>No suppliers yet. Add your first supplier to get started.</p>{% endif %}
+  </div>
+</section>
+{% endblock %}

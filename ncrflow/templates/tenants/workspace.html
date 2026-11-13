@@ -10,6 +10,9 @@
   {% if request.membership.role == "quality" %}
     <p><a class="button" href="{% url 'tenants:reference-overview' %}">Manage reference data →</a></p>
   {% endif %}
+  {% if request.membership.role == "company_admin" %}
+    <p><a class="button" href="{% url 'suppliers:list' %}">Manage suppliers →</a></p>
+  {% endif %}
   <div class="card account-card">
     <h2>Your access</h2>
     <dl>

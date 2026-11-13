@@ -10,5 +10,6 @@
 - `phase-2-ncr-list-detail.md`: company-scoped NCR browsing and read visibility.
 - `phase-2-internal-lifecycle.md`: internal review, closure, cancellation and plain audit history.
 - `phase-2-ncr-editing.md`: Q38 field permissions, reassignment, stale-edit protection and audits.
+- `phase-3-suppliers.md`: Supplier and SupplierContact tables and Company-admin management screens.
 
 Model changes must follow the design and review process in `CLAUDE.md`.

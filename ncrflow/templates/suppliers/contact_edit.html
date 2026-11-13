@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{% if editing %}Edit{% else %}Add{% endif %} contact · ncrflow{% endblock %}
+{% block content %}
+<section class="narrow-section">
+  <a href="{% url 'suppliers:detail' supplier_id=supplier.pk %}">← {{ supplier.name }}</a>
+  <p class="eyebrow">{{ request.company.name }} · {{ supplier.name }}</p>
+  <h1>{% if editing %}Edit contact{% else %}Add a contact{% endif %}</h1>
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}{{ form.non_field_errors }}
+      {% for field in form %}
+        <div class="form-field{% if field.name == 'active' %} checkbox-field{% endif %}">
+          {% if field.name == "active" %}{{ field }}{{ field.label_tag }}{% else %}{{ field.label_tag }}{{ field }}{% endif %}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+      <p class="help-text">Supplier emails are only ever sent to this address. A contact cannot be moved to another supplier.</p>
+      <div class="form-actions">
+        <button class="button" type="submit">Save contact</button>
+        <a href="{% url 'suppliers:detail' supplier_id=supplier.pk %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

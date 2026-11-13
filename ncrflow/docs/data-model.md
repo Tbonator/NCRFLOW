@@ -364,6 +364,21 @@ There is no magic-link table. The link is a signed, time-limited token made with
 
 The same person may be a contact of two different customer companies. Those are two rows, two links and two separate sessions, which is exactly the tenant wall.
 
+Phase 3 supplier mapping (first item): `supplier` and `supplier_contact` map to
+`suppliers_supplier` and `suppliers_suppliercontact`, created by
+`suppliers/0001_initial`; `suppliers/0002_integrity_guards` adds the section 4.2
+same-company keys (supplier.region, supplier_contact.supplier) as PostgreSQL
+composite foreign keys, with equivalent SQLite triggers for the isolated tests.
+Both tables use the tenant base model. Following the retention convention and the
+guards already recorded for reference data and NCRs, database guards reject
+deletion and company reassignment of either table, and reject any change to a
+contact's supplier_id (section 2.11) or public_id. Management is Company admin
+only (CLAUDE.md section 6), with company taken from the verified membership;
+creates and per-field changes are audited atomically (B.6), and contact email is
+stored lowercase and may be corrected by a Company admin as B.6 anticipates.
+`ncr.supplier_id`, `audit_entry.actor_supplier_contact_id`, dispatch, magic links
+and all supplier-facing pages remain later Phase 3 items.
+
 ### 2.12 `supplier_response`
 
 | Column | Type | Nullable | Default | Constraint | Note |
@@ -1141,6 +1156,7 @@ Questions 1 to 39, Q41 and Q42 are accepted; Q40 is superseded by Q2. Q25 still 
 
 | Date | What changed | Why |
 |---|---|---|
+| 2026-11-13 | Recorded the Phase 3 Supplier/SupplierContact physical mapping, same-company keys, retention/identity guards, Company-admin-only management and atomic auditing. Approved columns, constraints and business rules are unchanged. Tests and independent review of this item are still outstanding. | First Phase 3 item; see phase-3-suppliers.md, including its open questions. No NCR, audit-actor, dispatch or supplier-portal change. |
 | 2026-11-13 | Q38 internal NCR editing independently reviewed PASS: 0 Blockers, 0 Should fix, 0 Minor; reviewer verified 61 editing tests and Django/drift checks. Full suite 548 passed; lint/format clean. Live HTTP role forms and a rolled-back PostgreSQL edit/audit transaction passed. | Completes current internal NCR editing with no schema changes. Browser layout and live concurrency remain unverified. See phase-2-ncr-editing.md. |
 | 2026-11-13 | Recorded the Phase 2 Q38 edit mapping: actor/state whitelist, locked revalidation, active same-company replacement choices, unchanged historical choices and atomic per-field audits. No schema or business-rule changes. | Complete internal NCR editing before supplier features; Q42 plain audit display remains unchanged. |
 | 2026-11-13 | Independent review PASS for internal N2/N7/N8 and Q42 display correction: 0 Blockers, 0 Should fix, 0 Minor. Main suite 487 passed; reviewer independently passed 219 lifecycle/list-detail tests and Django/drift checks. | Approved lifecycle and plain history implemented without schema changes; status emails remain Phase 4. PostgreSQL concurrency/browser checks remain outstanding. See phase-2-internal-lifecycle.md. |

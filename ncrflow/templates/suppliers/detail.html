@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ supplier.name }} · ncrflow{% endblock %}
+{% block content %}
+<section>
+  <a href="{% url 'suppliers:list' %}">← Suppliers</a>
+  <div class="page-heading">
+    <div><p class="eyebrow">{{ request.company.name }} · Supplier</p><h1>{{ supplier.name }}</h1></div>
+    <a class="button" href="{% url 'suppliers:edit' supplier_id=supplier.pk %}">Edit supplier</a>
+  </div>
+  <div class="card">
+    <h2>Details</h2>
+    <dl>
+      <div><dt>Name</dt><dd>{{ supplier.name }}</dd></div>
+      <div><dt>Region</dt><dd>{% if supplier.region %}{{ supplier.region.name }}{% else %}No region{% endif %}</dd></div>
+      <div><dt>Status</dt><dd><span class="status-label{% if not supplier.active %} inactive{% endif %}">{% if supplier.active %}Active{% else %}Inactive{% endif %}</span></dd></div>
+    </dl>
+  </div>
+  <div class="card table-card stacked-card">
+    <div class="page-heading">
+      <h2>Contacts</h2>
+      <a class="button" href="{% url 'suppliers:contact-create' supplier_id=supplier.pk %}">Add contact</a>
+    </div>
+    {% if contacts %}
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">Contacts for {{ supplier.name }}</caption>
+          <thead><tr><th scope="col">Email</th><th scope="col">Name</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead>
+          <tbody>
+            {% for contact in contacts %}
+              <tr>
+                <th scope="row">{{ contact.email }}</th>
+                <td>{% if contact.name %}{{ contact.name }}{% else %}Not provided{% endif %}</td>
+                <td><span class="status-label{% if not contact.active %} inactive{% endif %}">{% if contact.active %}Active{% else %}Inactive{% endif %}</span></td>
+                <td class="row-actions">
+                  <a href="{% url 'suppliers:contact-edit' supplier_id=supplier.pk contact_id=contact.pk %}">Edit<span class="visually-hidden"> {{ contact.email }}</span></a>
+                  <form method="post" action="{% url 'suppliers:contact-status' supplier_id=supplier.pk contact_id=contact.pk %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="active" value="{% if contact.active %}False{% else %}True{% endif %}">
+                    <button class="text-button" type="submit">{% if contact.active %}Deactivate{% else %}Activate{% endif %}<span class="visually-hidden"> {{ contact.email }}</span></button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}<p>No contacts yet. Add the people at this supplier who should receive NCR links.</p>{% endif %}
+  </div>
+</section>
+{% endblock %}

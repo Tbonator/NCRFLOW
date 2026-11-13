@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}{% if editing %}Edit{% else %}Add{% endif %} supplier · ncrflow{% endblock %}
+{% block content %}
+<section class="narrow-section">
+  {% if editing %}<a href="{% url 'suppliers:detail' supplier_id=supplier.pk %}">← {{ supplier.name }}</a>{% else %}<a href="{% url 'suppliers:list' %}">← Suppliers</a>{% endif %}
+  <p class="eyebrow">{{ request.company.name }} · Suppliers</p>
+  <h1>{% if editing %}Edit supplier{% else %}Add a supplier{% endif %}</h1>
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}{{ form.non_field_errors }}
+      {% for field in form %}
+        <div class="form-field{% if field.name == 'active' %} checkbox-field{% endif %}">
+          {% if field.name == "active" %}{{ field }}{{ field.label_tag }}{% else %}{{ field.label_tag }}{{ field }}{% endif %}
+          {{ field.errors }}
+        </div>
+      {% endfor %}
+      <div class="form-actions">
+        <button class="button" type="submit">Save supplier</button>
+        {% if editing %}<a href="{% url 'suppliers:detail' supplier_id=supplier.pk %}">Cancel</a>{% else %}<a href="{% url 'suppliers:list' %}">Cancel</a>{% endif %}
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}
