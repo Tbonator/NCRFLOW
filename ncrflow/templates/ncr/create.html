@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Raise an internal NCR · ncrflow{% endblock %}
+{% block content %}
+<section class="narrow-section">
+  <a href="{% url 'tenants:workspace' %}">← Workspace</a>
+  <p class="eyebrow">{{ request.company.name }} · Internal NCR</p>
+  <h1>Raise a non-conformance</h1>
+  <p class="lede">Describe the issue and choose a responsible manager. The due date follows your chosen classification's SLA in calendar days.</p>
+  <div class="card">
+    <form method="post">
+      {% csrf_token %}{{ form.non_field_errors }}
+      {% for field in form %}
+        <div class="form-field">
+          {{ field.label_tag }}{{ field }}{{ field.errors }}
+          {% if field.help_text %}<p class="help-text">{{ field.help_text }}</p>{% endif %}
+        </div>
+      {% endfor %}
+      <p class="help-text">If a required list is empty, ask Quality to set up the reference data or your company administrator to assign a Manager.</p>
+      <div class="form-actions">
+        <button class="button" type="submit">Create NCR</button>
+        <a href="{% url 'tenants:workspace' %}">Cancel</a>
+      </div>
+    </form>
+  </div>
+</section>
+{% endblock %}

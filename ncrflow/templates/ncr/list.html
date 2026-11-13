@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}NCRs · ncrflow{% endblock %}
+{% block content %}
+<section>
+  <a href="{% url 'tenants:workspace' %}">← Workspace</a>
+  <div class="page-heading">
+    <div><p class="eyebrow">{{ request.company.name }}</p><h1>NCRs</h1></div>
+    <a class="button" href="{% url 'ncr:create' %}">Raise an internal NCR</a>
+  </div>
+  <p class="lede">Non-conformance reports you can see in this company, soonest due date first.</p>
+  <form method="get" class="filter-form">
+    <div>{{ filter_form.status.label_tag }}{{ filter_form.status }}</div>
+    <button class="button" type="submit">Filter</button>
+    {% if selected_status %}<a href="{% url 'ncr:list' %}">Clear filter</a>{% endif %}
+  </form>
+  {{ filter_form.status.errors }}
+  <div class="card table-card">
+    {% if page.object_list %}
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">NCRs for {{ request.company.name }}</caption>
+          <thead><tr><th scope="col">Number</th><th scope="col">Subject</th><th scope="col">Status</th><th scope="col">Classification</th><th scope="col">Responsible manager</th><th scope="col">Due date</th></tr></thead>
+          <tbody>
+            {% for report in page %}
+              <tr>
+                <th scope="row"><a href="{% url 'ncr:detail' public_id=report.public_id %}">{{ report.number }}</a></th>
+                <td class="report-description">{{ report.subject }}</td>
+                <td><span class="status-label{% if report.status == 'closed' or report.status == 'cancelled' %} inactive{% endif %}">{{ report.get_status_display }}</span></td>
+                <td>{{ report.classification.name }}</td>
+                <td>{% firstof report.responsible_manager.full_name report.responsible_manager.email %}</td>
+                <td>{{ report.due_date|date:"j F Y" }}{% if report.is_overdue %} <span class="overdue-marker">Overdue</span>{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if page.has_other_pages %}
+        <nav class="pagination" aria-label="Pagination">
+          {% if page.has_previous %}<a href="?{% if selected_status %}status={{ selected_status }}&amp;{% endif %}page={{ page.previous_page_number }}">Previous</a>{% endif %}
+          <span>Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+          {% if page.has_next %}<a href="?{% if selected_status %}status={{ selected_status }}&amp;{% endif %}page={{ page.next_page_number }}">Next</a>{% endif %}
+        </nav>
+      {% endif %}
+    {% elif selected_status %}<p>No NCRs with this status. <a href="{% url 'ncr:list' %}">Show all statuses</a>.</p>
+    {% else %}<p>There are no NCRs for you to see yet. NCRs you raise, or that are assigned to you, will appear here.</p>{% endif %}
+  </div>
+</section>
+{% endblock %}

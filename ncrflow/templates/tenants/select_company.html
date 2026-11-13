@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Choose company · ncrflow{% endblock %}
+{% block content %}
+<section class="narrow-section">
+  <p class="eyebrow">Company workspace</p>
+  <h1>Where are you working?</h1>
+  <p class="lede">Choose a company available to your account.</p>
+  <div class="card">
+    <form method="post" action="{% url 'tenants:select' %}">
+      {% csrf_token %}{{ form.non_field_errors }}
+      <div class="form-field">
+        {{ form.membership.label_tag }}{{ form.membership }}{{ form.membership.errors }}
+      </div>
+      <button class="button" type="submit">Open workspace</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}{{ report.number }} created · ncrflow{% endblock %}
+{% block content %}
+<section class="narrow-section">
+  <p class="eyebrow">{{ request.company.name }} · Internal NCR</p>
+  <h1>{{ report.number }}</h1>
+  <p class="lede">Your non-conformance report has been created.</p>
+  <div class="card">
+    <h2>{{ report.subject }}</h2>
+    <dl>
+      <div><dt>Status</dt><dd>{{ report.get_status_display }}</dd></div>
+      <div><dt>Due date</dt><dd>{{ report.due_date|date:"j F Y" }}</dd></div>
+      <div><dt>Classification</dt><dd>{{ report.classification.name }}</dd></div>
+      <div><dt>Region</dt><dd>{{ report.region.name }}</dd></div>
+      <div><dt>Discipline</dt><dd>{{ report.discipline.name }}</dd></div>
+      <div><dt>Responsible manager</dt><dd>{% firstof report.responsible_manager.full_name report.responsible_manager.email %}</dd></div>
+      <div><dt>Raised</dt><dd>{{ report.created_at|date:"j F Y, H:i" }}</dd></div>
+      {% if report.part_number %}<div><dt>Part number</dt><dd>{{ report.part_number }}</dd></div>{% endif %}
+      {% if report.job_number %}<div><dt>Job number</dt><dd>{{ report.job_number }}</dd></div>{% endif %}
+    </dl>
+    <p class="report-description">{{ report.description|linebreaksbr }}</p>
+    <div class="form-actions">
+      <a class="button" href="{% url 'ncr:create' %}">Raise another NCR</a>
+      <a href="{% url 'ncr:detail' public_id=report.public_id %}">View this NCR</a>
+      <a href="{% url 'tenants:workspace' %}">Workspace</a>
+    </div>
+  </div>
+</section>
+{% endblock %}

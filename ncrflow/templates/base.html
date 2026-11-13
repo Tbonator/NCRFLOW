@@ -1,0 +1,38 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}ncrflow{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/app.css' %}">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <a class="wordmark" href="{% url 'home' %}">ncrflow<span>.</span></a>
+    <nav aria-label="Main navigation">
+      {% if request.user.is_authenticated %}
+        {% if request.membership %}
+          <a href="{% url 'tenants:workspace' %}">{{ request.company.name }}</a>
+          <a href="{% url 'ncr:list' %}">NCRs</a>
+          <a href="{% url 'tenants:select' %}">Switch company</a>
+        {% endif %}
+        {% if request.user.is_superuser %}<a href="{% url 'admin:index' %}">Platform admin</a>{% endif %}
+        <form method="post" action="{% url 'accounts:logout' %}" class="inline-form">
+          {% csrf_token %}<button class="text-button" type="submit">Sign out</button>
+        </form>
+      {% else %}<a href="{% url 'accounts:login' %}">Sign in</a>{% endif %}
+    </nav>
+  </header>
+  <main id="main" class="page-container">
+    {% if messages %}
+      <div class="messages" aria-live="polite">
+        {% for message in messages %}<p class="notice {{ message.tags }}">{{ message }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+  <footer class="site-footer">ncrflow · Quality, followed through.</footer>
+</body>
+</html>

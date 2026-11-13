@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sign in · ncrflow{% endblock %}
+{% block content %}
+<section class="auth-layout">
+  <div>
+    <p class="eyebrow">Your company workspace</p>
+    <h1>Welcome back.</h1>
+    <p class="lede">Sign in with the account provided by your company administrator.</p>
+  </div>
+  <div class="card">
+    <h2>Sign in</h2>
+    <form method="post" action="{% url 'accounts:login' %}">
+      {% csrf_token %}{{ form.non_field_errors }}
+      {% for field in form %}
+        <div class="form-field">{{ field.label_tag }}{{ field }}{{ field.errors }}</div>
+      {% endfor %}
+      <button class="button full-width" type="submit">Sign in</button>
+    </form>
+    <p class="help-text">Need access? Contact your company administrator.</p>
+  </div>
+</section>
+{% endblock %}

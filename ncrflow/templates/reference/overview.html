@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Reference data · ncrflow{% endblock %}
+{% block content %}
+<section>
+  <p class="eyebrow">{{ request.company.name }} · Quality</p>
+  <h1>Reference data</h1>
+  <p class="lede">Manage the lists your team uses to classify and route non-conformances.</p>
+  <div class="reference-grid">
+    {% for kind, section in sections.items %}
+      <a class="card reference-link" href="{% url 'tenants:reference-list' kind=kind %}">
+        <h2>{{ section.title }}</h2>
+        {% if kind == "classifications" %}
+          <p>Classification names and their SLA in calendar days.</p>
+        {% elif kind == "regions" %}<p>Locations used to organise reports and quality routing.</p>
+        {% else %}<p>Disciplines used to categorise reports and route follow-up.</p>{% endif %}
+        <span>Manage →</span>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

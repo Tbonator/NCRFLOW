@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load tz %}
+{% block title %}{{ report.number }} · ncrflow{% endblock %}
+{% block content %}
+<section>
+  <a href="{% url 'ncr:list' %}">← NCRs</a>
+  <div class="page-heading">
+    <div><p class="eyebrow">{{ company.name }} · {{ report.get_direction_display }} NCR</p><h1>{{ report.number }}</h1></div>
+  </div>
+  {% timezone company.timezone %}
+  <div class="card">
+    <h2>{{ report.subject }}</h2>
+    <dl>
+      <div><dt>Number</dt><dd>{{ report.number }}</dd></div>
+      <div><dt>Status</dt><dd><span class="status-label{% if report.status == 'closed' or report.status == 'cancelled' %} inactive{% endif %}">{{ report.get_status_display }}</span></dd></div>
+      <div><dt>Due date</dt><dd>{{ report.due_date|date:"j F Y" }}{% if report.is_overdue %} <span class="overdue-marker">Overdue</span>{% endif %}</dd></div>
+      <div><dt>Direction</dt><dd>{{ report.get_direction_display }}</dd></div>
+      <div><dt>Classification</dt><dd>{{ report.classification.name }}</dd></div>
+      <div><dt>Region</dt><dd>{{ report.region.name }}</dd></div>
+      <div><dt>Discipline</dt><dd>{{ report.discipline.name }}</dd></div>
+      <div><dt>Originator</dt><dd>{% firstof report.originator.full_name report.originator.email %}</dd></div>
+      <div><dt>Responsible manager</dt><dd>{% firstof report.responsible_manager.full_name report.responsible_manager.email %}</dd></div>
+      <div><dt>Part number</dt><dd>{% if report.part_number %}{{ report.part_number }}{% else %}Not provided{% endif %}</dd></div>
+      <div><dt>Job number</dt><dd>{% if report.job_number %}{{ report.job_number }}{% else %}Not provided{% endif %}</dd></div>
+      <div><dt>Created</dt><dd>{{ report.created_at|date:"j F Y, H:i" }} ({{ company.timezone }})</dd></div>
+    </dl>
+    <h2>Description</h2>
+    <p class="report-description">{{ report.description|linebreaksbr }}</p>
+  </div>
+  <div class="card table-card stacked-card">
+    <h2>Audit history</h2>
+    {% if audit_entries %}
+      <div class="table-scroll">
+        <table>
+          <caption class="visually-hidden">Audit history for {{ report.number }}</caption>
+          <thead><tr><th scope="col">When</th><th scope="col">Who</th><th scope="col">What</th><th scope="col">Old value</th><th scope="col">New value</th></tr></thead>
+          <tbody>
+            {% for entry in audit_entries %}
+              <tr>
+                <th scope="row">{{ entry.created_at|date:"j F Y, H:i" }}</th>
+                <td>{% if entry.actor_user %}{% firstof entry.actor_user.full_name entry.actor_user.email %}{% else %}System{% endif %}</td>
+                <td>{{ entry.get_action_display }}{% if entry.field_name %}: {{ entry.field_name }}{% endif %}{% if entry.comment %}<br>{{ entry.comment }}{% endif %}</td>
+                <td class="audit-value">{% if entry.old_value is None %}—{% else %}{{ entry.old_value }}{% endif %}</td>
+                <td class="audit-value">{% if entry.new_value is None %}—{% else %}{{ entry.new_value }}{% endif %}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <p class="help-text">Times are shown in the company timezone ({{ company.timezone }}).</p>
+    {% else %}<p>No audit history has been recorded for this NCR.</p>{% endif %}
+  </div>
+  {% endtimezone %}
+</section>
+{% endblock %}

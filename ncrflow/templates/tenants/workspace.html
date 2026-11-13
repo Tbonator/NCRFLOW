@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}{{ request.company.name }} · ncrflow{% endblock %}
+{% block content %}
+<section class="workspace">
+  <p class="eyebrow">Company workspace</p>
+  <h1>{{ request.company.name }}</h1>
+  <p class="lede">Welcome, {% firstof request.user.full_name request.user.email %}.</p>
+  <p><a class="button" href="{% url 'ncr:create' %}">Raise an internal NCR →</a></p>
+  <p><a class="button" href="{% url 'ncr:list' %}">View NCRs →</a></p>
+  {% if request.membership.role == "quality" %}
+    <p><a class="button" href="{% url 'tenants:reference-overview' %}">Manage reference data →</a></p>
+  {% endif %}
+  <div class="card account-card">
+    <h2>Your access</h2>
+    <dl>
+      <div><dt>Email</dt><dd>{{ request.user.email }}</dd></div>
+      <div><dt>Role</dt><dd>{{ request.membership.get_role_display }}</dd></div>
+      <div><dt>Company timezone</dt><dd>{{ request.company.timezone }}</dd></div>
+    </dl>
+    <a href="{% url 'tenants:select' %}">Choose another company →</a>
+  </div>
+</section>
+{% endblock %}

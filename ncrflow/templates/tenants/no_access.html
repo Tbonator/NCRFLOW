@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}Company access unavailable · ncrflow{% endblock %}
+{% block content %}
+<section class="narrow-section">
+  <p class="eyebrow">Account access</p>
+  <h1>No company available.</h1>
+  <div class="card">
+    <p>Your account does not currently have access to an active company.</p>
+    <p>Contact your company administrator to arrange access, or sign out and use another account.</p>
+    {% if request.user.is_superuser %}
+      <a class="button" href="{% url 'admin:index' %}">Open platform admin</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
