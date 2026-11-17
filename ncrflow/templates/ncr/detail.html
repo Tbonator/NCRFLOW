@@ -16,6 +16,8 @@
       <div><dt>Status</dt><dd><span class="status-label{% if report.status == 'closed' or report.status == 'cancelled' %} inactive{% endif %}">{{ report.get_status_display }}</span></dd></div>
       <div><dt>Due date</dt><dd>{{ report.due_date|date:"j F Y" }}{% if report.is_overdue %} <span class="overdue-marker">Overdue</span>{% endif %}</dd></div>
       <div><dt>Direction</dt><dd>{{ report.get_direction_display }}</dd></div>
+      {% if report.supplier %}<div><dt>Supplier</dt><dd>{{ report.supplier.name }}</dd></div>
+      <div><dt>Dispatch</dt><dd>{% if report.sent_to_supplier_at %}{{ report.sent_to_supplier_at|date:"j F Y, H:i" }}{% else %}Not dispatched{% endif %}</dd></div>{% endif %}
       <div><dt>Classification</dt><dd>{{ report.classification.name }}</dd></div>
       <div><dt>Region</dt><dd>{{ report.region.name }}</dd></div>
       <div><dt>Discipline</dt><dd>{{ report.discipline.name }}</dd></div>
@@ -29,21 +31,21 @@
     <p class="report-description">{{ report.description|linebreaksbr }}</p>
   </div>
   {% if transition_form.non_field_errors %}<div role="alert">{{ transition_form.non_field_errors }}</div>{% endif %}
-  {% if internal_actions %}
+  {% if ncr_actions %}
   <div class="card stacked-card">
     <h2>Actions</h2>
-    {% if 'start-review' in internal_actions %}
+    {% if 'start-review' in ncr_actions %}
     <form method="post" action="{% url 'ncr:transition' report.public_id 'start-review' %}">
       {% csrf_token %}<button type="submit">Start review</button>
     </form>
     {% endif %}
-    {% if 'close' in internal_actions %}
+    {% if 'close' in ncr_actions %}
     <form method="post" action="{% url 'ncr:transition' report.public_id 'close' %}">
       {% csrf_token %}<p>Closing this NCR is final. It cannot be reopened.</p>
       <button type="submit">Close NCR</button>
     </form>
     {% endif %}
-    {% if 'cancel' in internal_actions %}
+    {% if 'cancel' in ncr_actions %}
     <form method="post" action="{% url 'ncr:transition' report.public_id 'cancel' %}">
       {% csrf_token %}{{ transition_form.reason.as_field_group }}
       <p>Cancelling this NCR is final. It cannot be reopened.</p>

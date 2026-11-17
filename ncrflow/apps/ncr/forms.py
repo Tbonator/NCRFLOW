@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.db.models import Q
 
+from apps.suppliers.models import Supplier
 from apps.tenants.models import Discipline, Membership, Region
 
 from .models import NCR, Classification
@@ -41,6 +42,29 @@ class NCRCreateForm(forms.Form):
             get_user_model()
             .objects.filter(pk__in=managers, is_active=True)
             .order_by("full_name", "email")
+        )
+
+
+class ExternalNCRCreateForm(NCRCreateForm):
+    supplier = forms.ModelChoiceField(queryset=Supplier.objects.none())
+
+    def __init__(self, *args, company, **kwargs):
+        super().__init__(*args, company=company, **kwargs)
+        self.fields["supplier"].queryset = (
+            Supplier.objects.for_company(company).filter(active=True).order_by("name", "pk")
+        )
+        self.order_fields(
+            (
+                "subject",
+                "description",
+                "supplier",
+                "classification",
+                "region",
+                "discipline",
+                "responsible_manager",
+                "part_number",
+                "job_number",
+            )
         )
 
 

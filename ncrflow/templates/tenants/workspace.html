@@ -2,18 +2,23 @@
 {% block title %}{{ request.company.name }} · ncrflow{% endblock %}
 {% block content %}
 <section class="workspace">
-  <p class="eyebrow">Company workspace</p>
-  <h1>{{ request.company.name }}</h1>
-  <p class="lede">Welcome, {% firstof request.user.full_name request.user.email %}.</p>
-  <p><a class="button" href="{% url 'ncr:create' %}">Raise an internal NCR →</a></p>
-  <p><a class="button" href="{% url 'ncr:list' %}">View NCRs →</a></p>
-  {% if request.membership.role == "quality" %}
-    <p><a class="button" href="{% url 'tenants:reference-overview' %}">Manage reference data →</a></p>
-  {% endif %}
-  {% if request.membership.role == "company_admin" %}
-    <p><a class="button" href="{% url 'suppliers:list' %}">Manage suppliers →</a></p>
-  {% endif %}
+  <div class="workspace-heading"><div>
+    <p class="eyebrow">{{ request.company.name }}</p>
+    <h1>Your quality workspace.</h1>
+    <p class="lede">Welcome, {% firstof request.user.full_name request.user.email %}. What needs your attention today?</p>
+  </div><span class="access-badge">{{ request.membership.get_role_display }}</span></div>
+  <div class="workspace-actions">
+    <a class="action-card action-card-primary" href="{% url 'ncr:create' %}"><span class="action-icon" aria-hidden="true">＋</span><h2>Raise an internal NCR</h2><p>Record an issue and put the next step in the right hands.</p><span class="action-link">Raise NCR <span aria-hidden="true">→</span></span></a>
+    <a class="action-card" href="{% url 'ncr:list' %}"><span class="action-icon" aria-hidden="true">≡</span><h2>View NCRs</h2><p>Find your reports, check due dates and follow their progress.</p><span class="action-link">Open NCRs <span aria-hidden="true">→</span></span></a>
+    {% if request.membership.role == "quality" %}
+    <a class="action-card" href="{% url 'tenants:reference-overview' %}"><span class="action-icon" aria-hidden="true">◇</span><h2>Manage reference data</h2><p>Keep classifications, regions and disciplines ready for your team.</p><span class="action-link">Manage lists <span aria-hidden="true">→</span></span></a>
+    {% endif %}
+    {% if request.membership.role == "company_admin" %}
+    <a class="action-card" href="{% url 'suppliers:list' %}"><span class="action-icon" aria-hidden="true">↗</span><h2>Manage suppliers</h2><p>Keep your supplier directory and contact details up to date.</p><span class="action-link">Open suppliers <span aria-hidden="true">→</span></span></a>
+    {% endif %}
+  </div>
   <div class="card account-card">
+    <p><a href="{% url 'ncr:create-external' %}">Raise an external NCR against a supplier →</a></p>
     <h2>Your access</h2>
     <dl>
       <div><dt>Email</dt><dd>{{ request.user.email }}</dd></div>

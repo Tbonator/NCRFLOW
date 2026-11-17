@@ -14,7 +14,7 @@ from freezegun import freeze_time
 
 from apps.ncr.forms import DESCRIPTIVE_FIELDS, QUALITY_EDIT_FIELDS, NCREditForm
 from apps.ncr.models import NCR
-from apps.ncr.services import editable_ncr_fields_for, update_internal_ncr
+from apps.ncr.services import editable_ncr_fields_for, update_ncr
 from apps.tenants.models import AuditEntry, Discipline, Membership, Region
 from tests.test_ncr_creation import create, setup_company
 from tests.test_ncr_transitions import set_state
@@ -39,7 +39,7 @@ def payload(report, **changes):
 
 def edit(people, key, report, **changes):
     user, membership = people[key]
-    return update_internal_ncr(
+    return update_ncr(
         by=user, actor_membership=membership, report_id=report.pk, data=payload(report, **changes)
     )
 
@@ -87,7 +87,7 @@ def test_creator_identity_grants_open_descriptive_edit_regardless_of_role(role):
     Membership.objects.for_company(setup["company"]).filter(pk=setup["member"].pk).update(role=role)
     report = create(setup)
     user, member = setup["user"], setup["member"]
-    result = update_internal_ncr(
+    result = update_ncr(
         by=user,
         actor_membership=member,
         report_id=report.pk,
@@ -258,7 +258,7 @@ def test_stale_revision_cannot_overwrite_a_newer_disjoint_edit(world):
     with freeze_time(report.updated_at + timedelta(seconds=2)):
         edit(people, "quality", report, region=region.pk)
     with pytest.raises(ValidationError, match="changed while you were editing"):
-        update_internal_ncr(
+        update_ncr(
             by=people["originator"][0],
             actor_membership=people["originator"][1],
             report_id=report.pk,
@@ -307,7 +307,7 @@ def test_foreign_report_forged_membership_and_platform_bypass_are_refused(world)
         (developer, people["quality"][1]),
     ):
         with pytest.raises(PermissionDenied):
-            update_internal_ncr(
+            update_ncr(
                 by=user,
                 actor_membership=membership,
                 report_id=report.pk,

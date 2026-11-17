@@ -9,17 +9,24 @@ from django.views.decorators.http import require_GET, require_http_methods, requ
 
 from apps.tenants.permissions import require_company_role
 
-from .forms import NCRCreateForm, NCREditForm, NCRStatusFilterForm, NCRTransitionForm
+from .forms import (
+    ExternalNCRCreateForm,
+    NCRCreateForm,
+    NCREditForm,
+    NCRStatusFilterForm,
+    NCRTransitionForm,
+)
 from .models import NCR
 from .services import (
     audit_history_for,
     company_today,
+    create_external_ncr,
     create_internal_ncr,
     editable_ncr_fields_for,
-    internal_actions_for,
+    ncr_actions_for,
     ncr_details_for,
     ncr_list_for,
-    update_internal_ncr,
+    update_ncr,
 )
 
 
@@ -27,15 +34,26 @@ from .services import (
 @never_cache
 @require_http_methods(["GET", "POST"])
 def create_ncr(request):
+    return _creation_page(request, external=False)
+
+
+@login_required
+@never_cache
+@require_http_methods(["GET", "POST"])
+def create_external(request):
+    return _creation_page(request, external=True)
+
+
+def _creation_page(request, *, external):
     company, _ = require_company_role(
         by=request.user, actor_membership=request.membership, role=None
     )
-    form = NCRCreateForm(request.POST if request.method == "POST" else None, company=company)
+    form_class = ExternalNCRCreateForm if external else NCRCreateForm
+    create = create_external_ncr if external else create_internal_ncr
+    form = form_class(request.POST if request.method == "POST" else None, company=company)
     if request.method == "POST" and form.is_valid():
         try:
-            report = create_internal_ncr(
-                by=request.user, actor_membership=request.membership, data=request.POST
-            )
+            report = create(by=request.user, actor_membership=request.membership, data=request.POST)
         except ValidationError as error:
             if hasattr(error, "error_dict"):
                 for field, errors in error.error_dict.items():
@@ -44,7 +62,7 @@ def create_ncr(request):
                 form.add_error(None, error)
         else:
             return redirect("ncr:created", public_id=report.public_id)
-    return render(request, "ncr/create.html", {"form": form})
+    return render(request, "ncr/create.html", {"form": form, "external": external})
 
 
 @login_required
@@ -58,7 +76,9 @@ def creation_confirmation(request, public_id):
     report = get_object_or_404(
         NCR.objects.for_company(company)
         .filter(originator_id=actor.pk)
-        .select_related("classification", "region", "discipline", "responsible_manager"),
+        .select_related(
+            "classification", "region", "discipline", "responsible_manager", "supplier"
+        ),
         public_id=public_id,
     )
     return render(request, "ncr/created.html", {"report": report})
@@ -122,7 +142,7 @@ def _render_detail(request, public_id, *, form=None, status=200):
                 )
             ),
             "transition_form": form if form is not None else NCRTransitionForm(),
-            "internal_actions": internal_actions_for(
+            "ncr_actions": ncr_actions_for(
                 by=request.user, actor_membership=request.membership, report=report
             ),
         },
@@ -186,7 +206,7 @@ def edit_ncr(request, public_id):
     )
     if request.method == "POST" and form.is_valid():
         try:
-            report = update_internal_ncr(
+            report = update_ncr(
                 by=request.user,
                 actor_membership=request.membership,
                 report_id=report.pk,

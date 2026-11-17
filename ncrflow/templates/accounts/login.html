@@ -2,13 +2,21 @@
 {% block title %}Sign in · ncrflow{% endblock %}
 {% block content %}
 <section class="auth-layout">
-  <div>
+  <div class="auth-intro">
     <p class="eyebrow">Your company workspace</p>
     <h1>Welcome back.</h1>
-    <p class="lede">Sign in with the account provided by your company administrator.</p>
+    <p class="lede">Pick up where your team left off. Your NCRs, next actions and decisions are all in one place.</p>
+    <ul class="auth-benefits">
+      <li><span aria-hidden="true">✓</span>A clear owner for every issue</li>
+      <li><span aria-hidden="true">✓</span>Due dates everyone can follow</li>
+      <li><span aria-hidden="true">✓</span>A history that stays with the NCR</li>
+    </ul>
+    <p class="help-text">Use the account provided by your company administrator.</p>
   </div>
-  <div class="card">
+  <div class="card auth-card">
+    <p class="eyebrow">Good to see you</p>
     <h2>Sign in</h2>
+    <p class="auth-card-note">Enter your email and password to continue.</p>
     <form method="post" action="{% url 'accounts:login' %}">
       {% csrf_token %}{{ form.non_field_errors }}
       {% for field in form %}

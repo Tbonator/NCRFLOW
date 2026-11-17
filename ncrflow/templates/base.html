@@ -7,22 +7,24 @@
   <title>{% block title %}ncrflow{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/app.css' %}">
 </head>
-<body>
+<body class="{% if request.user.is_authenticated and request.membership %}app-shell{% else %}public-shell{% endif %}">
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
-    <a class="wordmark" href="{% url 'home' %}">ncrflow<span>.</span></a>
+    <a class="wordmark" href="{% url 'home' %}" aria-label="ncrflow home"><span class="brand-mark" aria-hidden="true">n</span><span>ncrflow<span class="brand-dot">.</span></span></a>
     <nav aria-label="Main navigation">
       {% if request.user.is_authenticated %}
         {% if request.membership %}
-          <a href="{% url 'tenants:workspace' %}">{{ request.company.name }}</a>
-          <a href="{% url 'ncr:list' %}">NCRs</a>
+          <a href="{% url 'tenants:workspace' %}"{% if request.resolver_match.url_name == 'workspace' %} aria-current="page"{% endif %}>Workspace</a>
+          <a href="{% url 'ncr:list' %}"{% if request.resolver_match.namespace == 'ncr' %} aria-current="page"{% endif %}>NCRs</a>
+          {% if request.membership.role == 'quality' %}<a href="{% url 'tenants:reference-overview' %}">Reference data</a>{% endif %}
+          {% if request.membership.role == 'company_admin' %}<a href="{% url 'suppliers:list' %}"{% if request.resolver_match.namespace == 'suppliers' %} aria-current="page"{% endif %}>Suppliers</a>{% endif %}
           <a href="{% url 'tenants:select' %}">Switch company</a>
         {% endif %}
         {% if request.user.is_superuser %}<a href="{% url 'admin:index' %}">Platform admin</a>{% endif %}
         <form method="post" action="{% url 'accounts:logout' %}" class="inline-form">
           {% csrf_token %}<button class="text-button" type="submit">Sign out</button>
         </form>
-      {% else %}<a href="{% url 'accounts:login' %}">Sign in</a>{% endif %}
+      {% else %}<a class="button button-small" href="{% url 'accounts:login' %}">Sign in</a>{% endif %}
     </nav>
   </header>
   <main id="main" class="page-container">
@@ -34,5 +36,12 @@
     {% block content %}{% endblock %}
   </main>
   <footer class="site-footer">ncrflow · Quality, followed through.</footer>
+  {% if request.user.is_authenticated and request.membership %}
+  <nav class="mobile-navigation" aria-label="Mobile navigation">
+    <a href="{% url 'tenants:workspace' %}"{% if request.resolver_match.url_name == 'workspace' %} aria-current="page"{% endif %}><span aria-hidden="true">⌂</span>Workspace</a>
+    <a href="{% url 'ncr:list' %}"{% if request.resolver_match.namespace == 'ncr' and request.resolver_match.url_name != 'create' %} aria-current="page"{% endif %}><span aria-hidden="true">≡</span>NCRs</a>
+    <a href="{% url 'ncr:create' %}"{% if request.resolver_match.url_name == 'create' and request.resolver_match.namespace == 'ncr' %} aria-current="page"{% endif %}><span aria-hidden="true">＋</span>Raise NCR</a>
+  </nav>
+  {% endif %}
 </body>
 </html>

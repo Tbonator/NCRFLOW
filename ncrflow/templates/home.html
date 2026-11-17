@@ -1,13 +1,52 @@
 {% extends "base.html" %}
+{% block title %}ncrflow · Keep quality moving{% endblock %}
 {% block content %}
 <section class="hero">
-  <p class="eyebrow">Non-conformance reporting</p>
-  <h1>Keep quality moving.</h1>
-  <p class="lede">A shared place for your team to follow up on non-conformances.</p>
-  {% if request.user.is_authenticated %}
-    <a class="button" href="{% url 'tenants:workspace' %}">Open your workspace →</a>
-  {% else %}
-    <a class="button" href="{% url 'accounts:login' %}">Sign in to your company →</a>
-  {% endif %}
+  <div class="hero-copy">
+    <p class="eyebrow"><span class="eyebrow-dot" aria-hidden="true"></span>Quality, followed through</p>
+    <h1>A clear path from <span>issue to resolution.</span></h1>
+    <p class="lede">Raise non-conformances, assign a responsible manager and keep every decision in one place. Wherever your team works.</p>
+    <div class="hero-actions">
+      {% if request.user.is_authenticated %}
+        {% if request.user.is_superuser and not request.membership %}<a class="button" href="{% url 'admin:index' %}">Open platform admin <span aria-hidden="true">→</span></a>
+        {% else %}<a class="button" href="{% url 'tenants:workspace' %}">Open your workspace <span aria-hidden="true">→</span></a>{% endif %}
+      {% else %}<a class="button" href="{% url 'accounts:login' %}">Sign in to your company <span aria-hidden="true">→</span></a>{% endif %}
+      <a class="quiet-link" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a>
+    </div>
+    <p class="hero-note">Clear ownership. Calendar due dates. A record of each decision.</p>
+  </div>
+  <figure class="product-preview">
+    <div class="preview-orbit" aria-hidden="true"></div>
+    <div class="phone-frame">
+      <div class="phone-status" aria-hidden="true"><span>9:41</span><span>● ● ●</span></div>
+      <div class="phone-content">
+        <p class="preview-brand">ncrflow<span>.</span></p>
+        <p class="preview-greeting">A little clarity goes a long way.</p>
+        <div class="preview-report">
+          <div class="preview-report-top"><span class="eyebrow">Example NCR</span><span class="status-label">In Review</span></div>
+          <p class="preview-number">NCR-00024</p>
+          <h2>Component outside tolerance</h2>
+          <p>The issue is recorded. The next step has an owner.</p>
+          <div class="preview-owner"><span class="avatar" aria-hidden="true">RM</span><div><strong>Responsible manager</strong><span>Review in progress</span></div></div>
+        </div>
+        <ol class="preview-progress" aria-label="Example internal NCR progress">
+          <li class="done"><span aria-hidden="true">✓</span>Open</li>
+          <li class="current"><span aria-hidden="true">2</span>In Review</li>
+          <li><span aria-hidden="true">3</span>Closed</li>
+        </ol>
+        <p class="preview-history"><span aria-hidden="true">✓</span>Every step leaves a clear history.</p>
+      </div>
+    </div>
+    <figcaption>Illustrative example of the internal NCR workflow.</figcaption>
+  </figure>
+</section>
+<section class="how-section" id="how-it-works" aria-labelledby="how-heading">
+  <p class="eyebrow">A straightforward workflow</p>
+  <h2 id="how-heading">From finding the issue to following it through.</h2>
+  <div class="feature-grid">
+    <article class="feature-card"><span class="step-number">01</span><h3>Record the issue</h3><p>Capture what happened and choose the classification. The calendar due date is worked out for you.</p></article>
+    <article class="feature-card"><span class="step-number">02</span><h3>Give it an owner</h3><p>Assign a responsible manager, so your team knows who takes the next step.</p></article>
+    <article class="feature-card"><span class="step-number">03</span><h3>Follow it through</h3><p>Review the NCR, record the decision and retain its history when Quality closes it.</p></article>
+  </div>
 </section>
 {% endblock %}

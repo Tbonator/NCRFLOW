@@ -2,13 +2,14 @@
 {% block title %}{{ report.number }} created · ncrflow{% endblock %}
 {% block content %}
 <section class="narrow-section">
-  <p class="eyebrow">{{ request.company.name }} · Internal NCR</p>
+  <p class="eyebrow">{{ request.company.name }} · {{ report.get_direction_display }} NCR</p>
   <h1>{{ report.number }}</h1>
   <p class="lede">Your non-conformance report has been created.</p>
   <div class="card">
     <h2>{{ report.subject }}</h2>
     <dl>
       <div><dt>Status</dt><dd>{{ report.get_status_display }}</dd></div>
+      {% if report.supplier %}<div><dt>Supplier</dt><dd>{{ report.supplier.name }}</dd></div>{% endif %}
       <div><dt>Due date</dt><dd>{{ report.due_date|date:"j F Y" }}</dd></div>
       <div><dt>Classification</dt><dd>{{ report.classification.name }}</dd></div>
       <div><dt>Region</dt><dd>{{ report.region.name }}</dd></div>
@@ -20,7 +21,7 @@
     </dl>
     <p class="report-description">{{ report.description|linebreaksbr }}</p>
     <div class="form-actions">
-      <a class="button" href="{% url 'ncr:create' %}">Raise another NCR</a>
+      <a class="button" href="{% if report.direction == 'external' %}{% url 'ncr:create-external' %}{% else %}{% url 'ncr:create' %}{% endif %}">Raise another NCR</a>
       <a href="{% url 'ncr:detail' public_id=report.public_id %}">View this NCR</a>
       <a href="{% url 'tenants:workspace' %}">Workspace</a>
     </div>

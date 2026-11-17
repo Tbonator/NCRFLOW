@@ -109,10 +109,10 @@ concurrency and browser layout were not checked.
 
 ## Open questions
 
-1. Read access for other roles is undefined. Only Company admin can see suppliers
-   here. Raising an external NCR will later need a supplier picker for other roles;
-   that belongs to the external-NCR item and needs an owner decision on whether
-   Quality may also browse or manage suppliers.
+1. Resolved for the external-NCR item (2026-11-14): the owner approved an active
+   same-company supplier-name picker for every active internal role. Directory
+   and contact screens remain Company-admin-only; the picker grants no broader
+   browse/management or contact-email access.
 2. Contact email changes are allowed because Appendix B.6 lists contact email
    among audited edits, but no numbered owner decision states it outright.
 3. The delete, company and `public_id` guards are not listed in section 4.3. They

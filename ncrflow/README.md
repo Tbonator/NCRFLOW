@@ -90,10 +90,21 @@ The creation item passed independent review with no remaining findings and all
 exist; see `docs/phase-2-internal-lifecycle.md` for the current item and validation.
 Approved NCR editing is also implemented; `docs/phase-2-ncr-editing.md` describes
 role-specific fields, manager reassignment and stale-edit protection. Supplier
-management and dispatch are the next build phase.
-Current validation: 548 tests pass; Q38 editing independently reviewed PASS with
-no findings. Live PostgreSQL migrations and a rolled-back edit/audit check pass;
-concurrent-request and interactive browser checks remain outstanding.
+and contact management are available; dispatch and magic-link access are next.
+External NCR creation and internal pre-dispatch review are now available through
+`/ncrs/new/external/`. All active company roles can choose an active supplier in
+their company. Creating the report sends no supplier email. See
+`docs/phase-3-external-ncr.md` for scope and validation.
+The SupplierResponse schema foundation is now implemented as the prerequisite for
+dispatch; see `docs/phase-3-supplier-response-schema.md`. Dispatch delivery and
+authenticated supplier access are still upcoming; no send action is enabled yet.
+Current validation (2026-11-14): 1,098 tests pass, including external NCR creation,
+pre-dispatch workflow and the response-schema foundation. The latest item was
+independently reviewed PASS with no findings.
+Local PostgreSQL rollback verification and live HTTP
+checks pass; interactive browser layout and concurrent-request checks remain
+outstanding. See `docs/phase-3-external-ncr.md` for current review status and
+`docs/presentation-refresh.md` for the earlier presentation/migration review.
 
 ## Running the app (from Phase 1 onward)
 

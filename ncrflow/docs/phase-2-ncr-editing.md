@@ -25,7 +25,8 @@ applied. No email is sent.
 
 ## Write boundary
 
-`update_internal_ncr` reloads and locks Company, actor Membership and NCR, then
+`update_ncr` (originally `update_internal_ncr`, generalized in Phase 3) reloads
+and locks Company, actor Membership and NCR, then
 checks current role, assignment and status. Changed routing rows or manager
 memberships are checked under locks too. The form's hidden revision uses the
 existing updated_at timestamp; a mismatch with the locked row returns a conflict

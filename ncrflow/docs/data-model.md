@@ -332,6 +332,29 @@ The form carries the existing updated_at timestamp as a hidden revision value;
 the locked row must still match it before applying edits, so stale full-form
 submissions cannot overwrite newer changes. A conflict requires reloading.
 
+Phase 3 pre-dispatch mapping: the existing supplier column and same-company/
+immutability guards support external NCRs. N2 review and N8 cancellation use the
+shared named model methods for either direction; N7 closure remains internal-only.
+External closure is refused until the later accepted-response N6 implementation.
+Q38 also applies to external NCRs: descriptive/routing edits in Open/In Review,
+and Quality manager reassignment only in supplier-waiting statuses. Shared service
+names become ncr_actions_for, update_ncr and _transition_ncr; model methods and
+HTTP transition URLs stay unchanged. No table or lifecycle rule changes.
+
+Owner-approved external creation picker (2026-11-14): any active internal member
+may choose an active same-company supplier when creating an external NCR, in line
+with N1. This narrow name/ID picker grants no access to supplier/contact directory
+screens or contact emails. Directory management remains Company-admin-only.
+An external creation route fixes direction=external server-side and requires the
+supplier; the internal route still fixes direction=internal and no supplier.
+Both routes share the locked per-company number sequence, calendar SLA basis and
+atomic creation audit. Supplier activity/company scope is rechecked under lock
+before allocating the number. No response, dispatch, supplier session or email
+is created in this item. Internal-user lists/details use the same current-company
+Q41 creator/assigned-Manager/Quality/Company-admin scope for either NCR direction;
+Q42 plain audit display and the originator-only receipt are retained. Supplier
+access remains unavailable until the later dispatched supplier-session workflow.
+
 ### 2.10 `supplier`
 
 | Column | Type | Nullable | Default | Constraint | Note |
@@ -423,6 +446,26 @@ Locking (CLAUDE.md 5.3) is defined on this row as: **the response is locked when
 3. The supplier form lists only the four fields.
 
 The review columns hold the latest decision only. Earlier decisions and their comments are in `audit_entry`.
+
+Phase 3 response-schema foundation: SupplierResponse maps to ncr_supplierresponse,
+with the approved one-to-one NCR relation, all response/review columns and check
+constraints, plus the technical (company_id, id) key. PostgreSQL composite foreign
+keys enforce the NCR/supplier triple, dispatched/submitting contact supplier and
+reviewer membership; SQLite insert/update guards enforce the same scope. A retained
+identity guard fixes company/NCR/supplier/sent-to contact/created_at, rejects delete
+and preserves first_submitted_at once set. The content trigger checks OLD locked
+status, so combining a status change and text edit cannot bypass it. created_at
+uses an editable=False default-now field so N3 can supply its captured dispatch
+instant. No response-specific extra index is required by section 5.
+
+This foundation introduces no application creation endpoint, supplier-write API,
+URL or admin registration. Audited R1 creation remains inside the later N3
+transaction; the conditional supplier-text save method and four-field form arrive
+with authenticated supplier access. No response row, notification, email, magic
+link or supplier session is created by installing this schema. Parent NCR status
+is not constrained on response INSERT, because N3 creates the response before
+moving the NCR within the same transaction. Supplier writable-parent checks remain
+service rules under section 4.5.
 
 ### 2.13 `evidence`
 
@@ -1156,6 +1199,13 @@ Questions 1 to 39, Q41 and Q42 are accepted; Q40 is superseded by Q2. Q25 still 
 
 | Date | What changed | Why |
 |---|---|---|
+| 2026-11-14 | SupplierResponse schema foundation independently reviewed PASS with 0 Blockers, 0 Should fix, 0 Minor; reviewer passed 83 focused tests and Django/drift checks. Main suite 1,098 passed; local PostgreSQL 0006/0007 applied and five valid states/25 rejected violations verified in a rolled-back transaction. | Response storage and database guards are ready for N3. No public response write, dispatch, notification, supplier session or email is enabled by this schema-only item. |
+| 2026-11-14 | Recorded SupplierResponse physical schema, same-company/supplier references, content/identity/first-submission guards and staged write surface before model implementation. All business fields and lifecycle checks follow approved section 2.12. | Response storage is the prerequisite for audited dispatch; N3/authenticated supplier writes and email infrastructure remain subsequent items. |
+| 2026-11-14 | External N1 creation and pre-dispatch N2/N8/Q38 item independently reviewed PASS with 0 Blockers, 0 Should fix, 0 Minor; reviewer passed 229 targeted tests and Django/drift checks. Main full suite 1,016 passed, with rolled-back PostgreSQL workflow and four-role HTTP checks. | Approved names-only supplier picker and shared NCR workflow implemented without new schema. Dispatch, response, magic links and external closure remain subsequent items. |
+| 2026-11-14 | Owner approved active same-company supplier selection for all active internal roles when creating external NCRs; supplier/contact directory remains Company-admin-only. Recorded fixed-direction routes, locked supplier validation, shared N1 issuance and existing internal-user read scope for both directions. | Explicit owner answer: Yes, allow the supplier picker for all internal roles. Narrow picker only; no contact/directory permission or new schema. |
+| 2026-11-14 | Recorded shared internal/external pre-dispatch N2/N8 and Q38 service boundaries; N7 is still internal-only and external N6 is not enabled. | Prepare the next external NCR item against existing supplier schema; supplier-picker creation policy is being clarified separately. |
+| 2026-11-14 | Presentation/migration code check independently reviewed PASS with no findings; 961 tests pass. Corrected 0004 and existing 0005 applied successfully to local PostgreSQL with supplier-table dependencies. HTTP login, role navigation and NCR screens verified. | UI changes add no schema or permission rules; the SQLite repair preserves existing audit/report guarantees. Interactive browser layout and live concurrency remain unverified. |
+| 2026-11-14 | Corrected the pending Phase 3 NCR supplier migration's SQLite guard handling: suspend the cross-table audit NCR scope trigger during table rebuilds and restore it with the report guards in both directions. Local PostgreSQL history confirms 0004/0005 are unapplied. No approved fields or business guarantees changed. | Code-check found test database setup failing before UI tests; preserve the existing same-company audit guarantee during supplier-column staging. |
 | 2026-11-13 | Recorded the Phase 3 Supplier/SupplierContact physical mapping, same-company keys, retention/identity guards, Company-admin-only management and atomic auditing. Approved columns, constraints and business rules are unchanged. Tests and independent review of this item are still outstanding. | First Phase 3 item; see phase-3-suppliers.md, including its open questions. No NCR, audit-actor, dispatch or supplier-portal change. |
 | 2026-11-13 | Q38 internal NCR editing independently reviewed PASS: 0 Blockers, 0 Should fix, 0 Minor; reviewer verified 61 editing tests and Django/drift checks. Full suite 548 passed; lint/format clean. Live HTTP role forms and a rolled-back PostgreSQL edit/audit transaction passed. | Completes current internal NCR editing with no schema changes. Browser layout and live concurrency remain unverified. See phase-2-ncr-editing.md. |
 | 2026-11-13 | Recorded the Phase 2 Q38 edit mapping: actor/state whitelist, locked revalidation, active same-company replacement choices, unchanged historical choices and atomic per-field audits. No schema or business-rule changes. | Complete internal NCR editing before supplier features; Q42 plain audit display remains unchanged. |

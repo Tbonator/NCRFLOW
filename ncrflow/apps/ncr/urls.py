@@ -7,6 +7,7 @@ app_name = "ncr"
 urlpatterns = [
     path("", views.ncr_list, name="list"),
     path("new/", views.create_ncr, name="create"),
+    path("new/external/", views.create_external, name="create-external"),
     path("<uuid:public_id>/", views.ncr_detail, name="detail"),
     path("<uuid:public_id>/created/", views.creation_confirmation, name="created"),
     path("<uuid:public_id>/edit/", views.edit_ncr, name="edit"),

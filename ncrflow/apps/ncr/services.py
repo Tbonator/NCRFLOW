@@ -8,12 +8,14 @@ from django.db import transaction
 from django.db.models import BooleanField, Case, Q, Value, When
 from django.utils import timezone
 
+from apps.suppliers.models import Supplier
 from apps.tenants.models import AuditEntry, Membership, NumberSequence
 from apps.tenants.permissions import require_company_role
 
 from .forms import (
     DESCRIPTIVE_FIELDS,
     QUALITY_EDIT_FIELDS,
+    ExternalNCRCreateForm,
     NCRCreateForm,
     NCREditForm,
     NCRTransitionForm,
@@ -36,10 +38,31 @@ def _created(company, actor, obj, object_type, values, *, ncr=None):
 
 @transaction.atomic
 def create_internal_ncr(*, by, actor_membership, data):
+    return _create_ncr(
+        by=by,
+        actor_membership=actor_membership,
+        data=data,
+        form_class=NCRCreateForm,
+        direction="internal",
+    )
+
+
+@transaction.atomic
+def create_external_ncr(*, by, actor_membership, data):
+    return _create_ncr(
+        by=by,
+        actor_membership=actor_membership,
+        data=data,
+        form_class=ExternalNCRCreateForm,
+        direction="external",
+    )
+
+
+def _create_ncr(*, by, actor_membership, data, form_class, direction):
     company, actor = require_company_role(
         by=by, actor_membership=actor_membership, role=None, lock=True
     )
-    form = NCRCreateForm(data, company=company)
+    form = form_class(data, company=company)
     if not form.is_valid():
         raise ValidationError(form.errors.as_data())
     values = dict(form.cleaned_data)
@@ -68,6 +91,16 @@ def create_internal_ncr(*, by, actor_membership, data):
     )
     if manager is None:
         raise ValidationError({"responsible_manager": "Choose an active company Manager."})
+    if direction == "external":
+        supplier = (
+            Supplier.objects.for_company(company)
+            .select_for_update()
+            .filter(pk=values["supplier"].pk, active=True)
+            .first()
+        )
+        if supplier is None:
+            raise ValidationError({"supplier": "Choose an active supplier in this company."})
+        values["supplier"] = supplier
 
     instant = timezone.now()
     try:
@@ -100,7 +133,7 @@ def create_internal_ncr(*, by, actor_membership, data):
     report = NCR.objects.for_company(company).create(
         company=company,
         originator=actor,
-        direction="internal",
+        direction=direction,
         status=NCR.Status.OPEN,
         sequence_number=counter.last_number,
         number=f"NCR-{counter.last_number:05d}",
@@ -117,6 +150,7 @@ def create_internal_ncr(*, by, actor_membership, data):
             "subject",
             "description",
             "direction",
+            "supplier_id",
             "classification_id",
             "region_id",
             "discipline_id",
@@ -179,7 +213,7 @@ def ncr_list_for(*, by, actor_membership, today, status=""):
         reports = reports.filter(status=status)
     return (
         _with_overdue_flag(reports, today=today)
-        .select_related("classification", "responsible_manager")
+        .select_related("classification", "responsible_manager", "supplier")
         .order_by("due_date", "sequence_number")
     )
 
@@ -188,7 +222,7 @@ def ncr_details_for(*, by, actor_membership, today):
     """Visible NCRs with everything the detail screen displays."""
     reports = visible_ncrs_for(by=by, actor_membership=actor_membership)
     return _with_overdue_flag(reports, today=today).select_related(
-        "classification", "region", "discipline", "originator", "responsible_manager"
+        "classification", "region", "discipline", "originator", "responsible_manager", "supplier"
     )
 
 
@@ -209,22 +243,29 @@ def _may_act(report, actor, role, action):
         return role == Membership.Role.QUALITY or (
             role == Membership.Role.MANAGER and report.responsible_manager_id == actor.pk
         )
-    return action in ("close", "cancel") and role == Membership.Role.QUALITY
+    if action == "close":
+        return report.direction == "internal" and role == Membership.Role.QUALITY
+    return action == "cancel" and role == Membership.Role.QUALITY
 
 
 def _source_statuses(action):
     return {
         "start-review": (NCR.Status.OPEN,),
         "close": (NCR.Status.IN_REVIEW,),
-        "cancel": (NCR.Status.OPEN, NCR.Status.IN_REVIEW),
+        "cancel": (
+            NCR.Status.OPEN,
+            NCR.Status.IN_REVIEW,
+            NCR.Status.AWAITING_SUPPLIER,
+            NCR.Status.AWAITING_INTERNAL_REVIEW,
+        ),
     }.get(action, ())
 
 
-def internal_actions_for(*, by, actor_membership, report):
+def ncr_actions_for(*, by, actor_membership, report):
     """Display hints only; writes repeat all checks against the locked report."""
     company, actor = require_company_role(by=by, actor_membership=actor_membership, role=None)
     role = Membership.objects.for_company(company).get(pk=actor_membership.pk).role
-    if report.company_id != company.pk or report.direction != "internal":
+    if report.company_id != company.pk:
         return ()
     return tuple(
         action
@@ -234,7 +275,7 @@ def internal_actions_for(*, by, actor_membership, report):
 
 
 @transaction.atomic
-def _transition_internal_ncr(*, report_id, action, by, actor_membership, reason=""):
+def _transition_ncr(*, report_id, action, by, actor_membership, reason=""):
     company, actor = require_company_role(
         by=by, actor_membership=actor_membership, role=None, lock=True
     )
@@ -242,7 +283,7 @@ def _transition_internal_ncr(*, report_id, action, by, actor_membership, reason=
     report = NCR.objects.for_company(company).select_for_update().filter(pk=report_id).first()
     if report is None or not _may_act(report, actor, role, action):
         raise PermissionDenied("You cannot perform this NCR action.")
-    if report.direction != "internal" or report.status not in _source_statuses(action):
+    if report.status not in _source_statuses(action):
         raise ValidationError("This action is no longer available. Reload the NCR and try again.")
     form = NCRTransitionForm({"reason": reason} if action == "cancel" else {})
     if not form.is_valid():
@@ -282,7 +323,9 @@ def _transition_internal_ncr(*, report_id, action, by, actor_membership, reason=
 
 
 def _editable_fields(report, actor, role):
-    if report.direction != "internal" or report.status not in (
+    if report.status in (NCR.Status.AWAITING_SUPPLIER, NCR.Status.AWAITING_INTERNAL_REVIEW):
+        return ("responsible_manager",) if role == Membership.Role.QUALITY else ()
+    if report.status not in (
         NCR.Status.OPEN,
         NCR.Status.IN_REVIEW,
     ):
@@ -306,7 +349,7 @@ def editable_ncr_fields_for(*, by, actor_membership, report):
 
 
 @transaction.atomic
-def update_internal_ncr(*, by, actor_membership, report_id, data):
+def update_ncr(*, by, actor_membership, report_id, data):
     company, actor = require_company_role(
         by=by, actor_membership=actor_membership, role=None, lock=True
     )
@@ -314,7 +357,7 @@ def update_internal_ncr(*, by, actor_membership, report_id, data):
     report = NCR.objects.for_company(company).select_for_update().filter(pk=report_id).first()
     if report is None:
         raise PermissionDenied("You cannot edit this NCR.")
-    if report.direction != "internal" or report.status in (NCR.Status.CLOSED, NCR.Status.CANCELLED):
+    if report.status in (NCR.Status.CLOSED, NCR.Status.CANCELLED):
         raise ValidationError(
             "This NCR is no longer editable. Reload it to see its current status."
         )

@@ -1,11 +1,16 @@
 {% extends "base.html" %}
-{% block title %}Raise an internal NCR · ncrflow{% endblock %}
+{% block title %}Raise an {% if external %}external{% else %}internal{% endif %} NCR · ncrflow{% endblock %}
 {% block content %}
 <section class="narrow-section">
   <a href="{% url 'tenants:workspace' %}">← Workspace</a>
-  <p class="eyebrow">{{ request.company.name }} · Internal NCR</p>
+  <p class="eyebrow">{{ request.company.name }} · {% if external %}External{% else %}Internal{% endif %} NCR</p>
   <h1>Raise a non-conformance</h1>
   <p class="lede">Describe the issue and choose a responsible manager. The due date follows your chosen classification's SLA in calendar days.</p>
+  <nav class="creation-types" aria-label="NCR type">
+    <a href="{% url 'ncr:create' %}"{% if not external %} aria-current="page"{% endif %}>Internal NCR</a>
+    <a href="{% url 'ncr:create-external' %}"{% if external %} aria-current="page"{% endif %}>External NCR</a>
+  </nav>
+  {% if external %}<p class="help-text">Choose the supplier this issue relates to. Your team reviews the NCR before dispatch; creating it does not notify the supplier.</p>{% endif %}
   <div class="card">
     <form method="post">
       {% csrf_token %}{{ form.non_field_errors }}
@@ -16,6 +21,7 @@
         </div>
       {% endfor %}
       <p class="help-text">If a required list is empty, ask Quality to set up the reference data or your company administrator to assign a Manager.</p>
+      {% if external %}<p class="help-text">If the supplier is missing, ask your company administrator to add or reactivate it.</p>{% endif %}
       <div class="form-actions">
         <button class="button" type="submit">Create NCR</button>
         <a href="{% url 'tenants:workspace' %}">Cancel</a>

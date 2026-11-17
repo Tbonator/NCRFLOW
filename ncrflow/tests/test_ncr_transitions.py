@@ -11,7 +11,7 @@ from django.utils import timezone
 from freezegun import freeze_time
 
 from apps.ncr.models import NCR
-from apps.ncr.services import internal_actions_for
+from apps.ncr.services import ncr_actions_for
 from apps.tenants.models import AuditEntry, Membership
 from tests.test_ncr_creation import create, setup_company
 
@@ -266,7 +266,7 @@ def test_http_lifecycle_and_stale_double_submission(world):
     report.refresh_from_db()
     assert report.status == "closed" and events(report).count() == 2
     final = client.get(detail_url)
-    assert not final.context["internal_actions"]
+    assert not final.context["ncr_actions"]
     assert b"Status changed" in final.content
 
 
@@ -295,4 +295,4 @@ def test_http_read_visibility_does_not_grant_write_authority(world):
 def test_available_actions_follow_transition_roles(world, key, expected):
     _, people, report = world
     user, membership = people[key]
-    assert internal_actions_for(by=user, actor_membership=membership, report=report) == expected
+    assert ncr_actions_for(by=user, actor_membership=membership, report=report) == expected
